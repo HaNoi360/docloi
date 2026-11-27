@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#05070a">
+  <meta name="description" content="Teleprompter quay video camera trước, hiển thị lời thoại và lưu video không kèm giao diện.">
+  <title>Teleprompter – Quay video & nhắc chữ</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <main id="app" class="app">
+    <section id="stage" class="stage ratio-9-16" aria-label="Màn hình quay video">
+      <video id="cameraPreview" autoplay muted playsinline></video>
+      <div id="cameraPlaceholder" class="camera-placeholder">
+        <div class="camera-symbol">◎</div>
+        <strong>Teleprompter</strong>
+        <span>Bật camera để bắt đầu. Điện thoại nên đặt dọc hoặc ngang theo tỷ lệ video anh muốn quay.</span>
+        <button id="startCamera" class="primary-btn">Bật camera</button>
+        <button id="installApp" class="secondary-btn install-btn" hidden>⤓ Cài đặt ứng dụng (chạy offline)</button>
+        <small id="installHint" class="install-hint" hidden></small>
+      </div>
+
+      <div id="promptOverlay" class="prompt-overlay">
+        <div id="promptText" class="prompt-text" aria-live="off">Xin chào anh chị!\n\nHãy nhập kịch bản trong bảng điều khiển. Khi bắt đầu quay, lời thoại sẽ tự động cuộn.</div>
+      </div>
+
+      <div class="stage-topline">
+        <span id="cameraStatus" class="status-pill">● Chưa kết nối</span>
+        <span id="recordTimer" class="timer">00:00</span>
+        <button id="settingsToggle" class="overlay-icon-btn" aria-label="Mở bảng điều khiển">☰</button>
+      </div>
+      <div id="recordingDot" class="recording-dot" hidden></div>
+
+      <div id="countdownOverlay" class="countdown-overlay" hidden>
+        <span id="countdownNumber">3</span>
+        <small>Chuẩn bị…</small>
+      </div>
+
+      <div class="bottom-dock">
+        <div class="dock-handle" id="drawerHandle" aria-label="Vuốt xuống để mở điều khiển"><span></span><small>Vuốt xuống để mở điều khiển</small></div>
+        <div class="dock-actions">
+          <button id="recordButton" class="record-btn" disabled><span></span> Bắt đầu quay</button>
+          <button id="stopButton" class="stop-btn" disabled>■ Kết thúc</button>
+        </div>
+        <div class="dock-subrow"><span id="recordHint">Camera chưa sẵn sàng</span><button id="fullscreenToggle" class="dock-text-btn">Toàn màn hình</button></div>
+      </div>
+
+      <section id="controlsSection" class="control-drawer" aria-label="Bảng điều khiển Teleprompter" aria-hidden="true">
+        <div class="drawer-heading">
+          <div><strong>Điều khiển Teleprompter</strong><small>Vuốt lên để đóng bảng điều khiển</small></div>
+          <button id="closeDrawer" class="overlay-icon-btn" aria-label="Đóng bảng điều khiển">×</button>
+        </div>
+
+        <div class="drawer-scroll">
+          <div class="drawer-section">
+            <div class="drawer-label-row"><strong>Lời thoại của anh</strong><button id="clearScript" class="text-btn">Xóa chữ</button></div>
+            <textarea id="scriptInput" spellcheck="false" placeholder="Dán kịch bản của anh vào đây…">Xin chào anh chị!
+
+Hôm nay, tôi muốn chia sẻ với anh chị một góc nhìn rất đáng chú ý.
+
+Hãy nhìn thẳng vào camera, nói tự nhiên và giữ nhịp đọc thoải mái.</textarea>
+            <div class="prompt-actions">
+              <button id="scrollStart" class="primary-btn">▶ Chạy chữ</button>
+              <button id="scrollPause" class="secondary-btn" disabled>Ⅱ Tạm dừng chữ</button>
+              <button id="scrollReset" class="secondary-btn">↺ Về đầu</button>
+            </div>
+          </div>
+
+          <div class="drawer-section srt-section">
+            <div class="drawer-label-row"><strong>Phát theo file SRT</strong><button id="srtClear" class="text-btn" hidden>Gỡ SRT</button></div>
+            <input id="srtFile" type="file" accept=".srt,application/x-subrip,text/plain" hidden>
+            <button id="srtLoad" class="secondary-btn audio-apply">Chọn file .srt</button>
+            <p id="srtInfo" class="srt-info">Chưa nạp file. Lời thoại đang cuộn theo tốc độ cố định bên dưới.</p>
+            <div id="srtRateRow" class="setting-row" hidden><label for="srtRate">Nhịp theo SRT <output id="srtRateValue">100%</output></label><input id="srtRate" type="range" min="50" max="150" step="5" value="100"></div>
+          </div>
+
+          <div class="drawer-section">
+            <div class="setting-row"><label for="speedRange">Tốc độ cuộn cố định <output id="speedValue">35</output></label><input id="speedRange" type="range" min="5" max="120" value="35"></div>
+            <div class="setting-row"><label for="fontRange">Cỡ chữ <output id="fontValue">30 px</output></label><input id="fontRange" type="range" min="18" max="72" value="30"></div>
+            <div class="setting-row"><label for="shadeRange">Độ tối nền chữ <output id="shadeValue">45%</output></label><input id="shadeRange" type="range" min="0" max="90" value="45"></div>
+            <div class="setting-row compact"><label for="textAlign">Căn chữ</label><select id="textAlign"><option value="center">Giữa</option><option value="left">Trái</option></select></div>
+          </div>
+
+          <div class="drawer-section option-row">
+            <div><strong>Tỷ lệ video</strong><small>Chọn khung hình đầu ra</small></div>
+            <div class="ratio-control" role="group" aria-label="Tỷ lệ video">
+              <button class="ratio-btn active" data-ratio="9:16">Dọc 9:16</button>
+              <button class="ratio-btn" data-ratio="16:9">Ngang 16:9</button>
+            </div>
+          </div>
+
+          <div class="drawer-section option-row">
+            <div><strong>Đếm ngược</strong><small>Trước khi bắt đầu ghi hình</small></div>
+            <select id="countdownSelect"><option value="0">Tắt</option><option value="3">3 giây</option><option value="5" selected>5 giây</option><option value="10">10 giây</option></select>
+          </div>
+          <div class="drawer-section quality-row"><span id="qualityLabel">Chất lượng: Tự động</span><span>Chỉ ghi hình camera, không ghi giao diện</span></div>
+
+          <div class="drawer-section audio-section">
+            <div class="drawer-label-row"><strong>Âm thanh micro GoChek</strong><span id="audioStatus" class="audio-status">Chưa kiểm tra</span></div>
+            <div class="setting-row compact"><label for="audioMode">Xử lý âm thanh</label><select id="audioMode">
+              <option value="wireless" selected>Micro không dây – giữ tín hiệu gốc</option>
+              <option value="auto">Tự động – Chrome xử lý</option>
+              <option value="noise">Giảm tiếng ồn</option>
+            </select></div>
+            <div class="setting-row compact"><label for="audioDevice">Thiết bị micro</label><select id="audioDevice"><option value="">Tự động (thiết bị mặc định)</option></select></div>
+            <button id="applyAudio" class="secondary-btn audio-apply">Áp dụng cấu hình micro</button>
+            <button id="audioTestButton" class="secondary-btn audio-apply">Thu âm thử 10 giây</button>
+            <audio id="audioTestPlayback" class="audio-test-playback" controls hidden></audio>
+            <p id="audioDiagnostics" class="audio-diagnostics">Khi bật camera, thông tin micro và cấu hình thu thực tế sẽ hiển thị tại đây.</p>
+            <small class="audio-note">Khuyến nghị GoChek USB-C: giữ tín hiệu gốc, tắt AGC/khử nhiễu của trình duyệt để tránh xử lý chồng.</small>
+          </div>
+          <div class="drawer-section config-section">
+            <div class="drawer-label-row"><strong>Cấu hình</strong><span id="saveState" class="save-state">Tự động lưu</span></div>
+            <small class="audio-note">Lời thoại, tốc độ, cỡ chữ, tỷ lệ, đếm ngược, micro và file SRT được lưu trên thiết bị này và nạp lại lần sau.</small>
+            <button id="resetSettings" class="secondary-btn audio-apply">Đặt lại cấu hình mặc định</button>
+          </div>
+          <div id="resultPanel" class="result-panel" hidden>
+            <div><strong>Video đã sẵn sàng</strong><span id="resultInfo">Bản ghi của anh đã hoàn tất.</span></div>
+            <div class="result-actions"><a id="downloadLink" class="download-btn" download>↓ Lưu video</a><button id="deleteVideo" class="text-btn">Xóa bản lưu</button></div>
+          </div>
+          <p id="appMessage" class="app-message" role="status">Đang chờ bật camera.</p>
+        </div>
+      </section>
+      <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
+    </section>
+  </main>
+  <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
